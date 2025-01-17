@@ -38,7 +38,7 @@ SECRET_KEY = "django-insecure-^1cbp@k5bm^g2z)asz35_b4q50bs&z@azt5re2w9vy$j%1-tj#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'johnmos.pythonanywhere.com']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'johnmos.pythonanywhere.com', 'linkrappdh.onrender.com']
 
 DEFAULT_DOMAIN = 'JOhnMos.pythonanywhere.com'
 
