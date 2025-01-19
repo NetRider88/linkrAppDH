@@ -71,8 +71,8 @@ ROOT_URLCONF = "linkr.urls"
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # Empty since we're using app templates
-        'APP_DIRS': True,  # This enables app-level templates
+        'DIRS': [os.path.join(BASE_DIR, 'tracker/templates')],
+        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',

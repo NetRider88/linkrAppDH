@@ -169,6 +169,37 @@
         .navbar-brand span {
             text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
+
+        /* Admin Styles */
+        :root {
+            --primary: #8B1E3F;
+            --secondary: #FF8C42;
+        }
+
+        #header {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .module h2, .module caption, .inline-group h2 {
+            background: var(--primary);
+        }
+
+        div.breadcrumbs {
+            background: var(--secondary);
+        }
+
+        .button, input[type=submit], input[type=button], .submit-row input, a.button {
+            background: var(--primary);
+        }
+
+        .button:hover, input[type=submit]:hover, input[type=button]:hover {
+            background: var(--secondary);
+        }
+
+        .object-tools a:focus, .object-tools a:hover {
+            background-color: var(--secondary);
+        }
     </style>
 </head>
 <body>
