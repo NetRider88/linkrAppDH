@@ -91,8 +91,10 @@
                                            value="{{ link.get_short_url }}" 
                                            class="short-link-input" 
                                            readonly>
-                                    <button class="copy-btn" data-clipboard-text="{{ link.get_short_url }}">
-                                        Copy
+                                    <button class="copy-btn" 
+                                            onclick="copyToClipboard(this)" 
+                                            data-url="{{ link.get_short_url }}">
+                                        <i class="bi bi-clipboard"></i> Copy
                                     </button>
                                 </div>
                             </td>
