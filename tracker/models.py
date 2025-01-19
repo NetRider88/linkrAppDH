@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 from urllib.parse import urlencode
+from django.conf import settings
 
 class Link(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -17,7 +18,10 @@ class Link(models.Model):
         return f"{self.short_id} -> {self.original_url}"
 
     def get_short_url(self):
-        base_url = f"http://localhost:8000/tracker/{self.short_id}"
+        # Use settings.DEFAULT_DOMAIN or fallback to the request's domain
+        domain = "linkrappdh.onrender.com"
+        base_url = f"https://{domain}/tracker/{self.short_id}"
+        
         # If there are any variables, use the Braze placeholder
         if self.variables.exists():
             variable = self.variables.first()
