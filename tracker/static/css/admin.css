@@ -1,0 +1,42 @@
+/* Admin theme */
+:root {
+    --primary: #8B1E3F;
+    --secondary: #FF8C42;
+    --header-bg: var(--primary);
+    --header-color: white;
+    --header-link-color: white;
+    --header-branding-color: white;
+}
+
+#header {
+    background: var(--primary);
+    color: var(--header-color);
+}
+
+#header a:link, #header a:visited {
+    color: var(--header-link-color);
+}
+
+#branding h1 {
+    color: var(--header-branding-color);
+}
+
+.module h2, .module caption, .inline-group h2 {
+    background: var(--primary);
+}
+
+div.breadcrumbs {
+    background: var(--secondary);
+}
+
+.button, input[type=submit], input[type=button], .submit-row input, a.button {
+    background: var(--primary);
+}
+
+.button:hover, input[type=submit]:hover, input[type=button]:hover {
+    background: var(--secondary);
+}
+
+.object-tools a:focus, .object-tools a:hover {
+    background-color: var(--secondary);
+}
