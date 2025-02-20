@@ -1,0 +1,43 @@
+{% extends 'tracker/base.html' %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header text-white d-flex justify-content-between align-items-center py-4" style="background-color: #8B1E3F;">
+        <div>
+            <h2 class="h3 mb-1">Create New Campaign</h2>
+            <p class="mb-0 opacity-75">Group your links together for better organization and analysis</p>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="{{ form.name.id_for_label }}" class="form-label">Campaign Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="alert alert-danger mt-2">{{ form.name.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="alert alert-danger mt-2">{{ form.description.errors }}</div>
+                {% endif %}
+                <div class="form-text">Describe the purpose of this campaign and what links it will contain.</div>
+            </div>
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'home' %}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn text-white" style="background-color: #8B1E3F;">Create Campaign</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.form-control:focus, .form-select:focus {
+    border-color: #8B1E3F;
+    box-shadow: 0 0 0 0.25rem rgba(139, 30, 63, 0.25);
+}
+</style>
+{% endblock %} 

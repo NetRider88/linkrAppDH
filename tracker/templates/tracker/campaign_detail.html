@@ -1,107 +1,58 @@
 {% extends 'tracker/base.html' %}
 
 {% block content %}
-<!-- Welcome Banner -->
 <div class="card shadow-sm mb-4">
     <div class="card-header text-white d-flex justify-content-between align-items-center py-4" style="background-color: #8B1E3F;">
         <div>
-            <h2 class="h3 mb-1">Welcome, {{ request.user.username }}!</h2>
-            <p class="mb-0 opacity-75">Manage and track your links in one place</p>
+            <h2 class="h3 mb-1">{{ campaign.name }}</h2>
+            <p class="mb-0 opacity-75">{{ campaign.description }}</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{% url 'create_campaign' %}" class="btn" style="background-color: #FFF3E6; color: #8B1E3F;">
-                <i class="bi bi-folder-plus"></i> New Campaign
+            <a href="{% url 'generate_link' %}?campaign={{ campaign.id }}" class="btn" style="background-color: #FFF3E6; color: #8B1E3F;">
+                <i class="bi bi-plus-lg"></i> Add Link
             </a>
-            <a href="{% url 'generate_link' %}" class="btn" style="background-color: #FFF3E6; color: #8B1E3F;">
-                <i class="bi bi-plus-lg"></i> New Link
-            </a>
+            <button class="btn btn-outline-light" onclick="if(confirm('Are you sure you want to delete this campaign?')) window.location.href='{% url 'delete_campaign' campaign.id %}'">
+                <i class="bi bi-trash"></i>
+            </button>
         </div>
     </div>
 </div>
 
-<!-- Quick Stats -->
+<!-- Campaign Stats -->
 <div class="row mb-4">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card shadow-sm h-100">
             <div class="card-body text-center">
-                <i class="bi bi-folder display-4" style="color: #FF8C42;"></i>
-                <h3 class="h5 mt-3">Campaigns</h3>
-                <p class="h2 mb-0">{{ campaigns|length }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm h-100">
-            <div class="card-body text-center">
-                <i class="bi bi-link-45deg display-4" style="color: #8B1E3F;"></i>
+                <i class="bi bi-link-45deg display-4" style="color: #FF8C42;"></i>
                 <h3 class="h5 mt-3">Total Links</h3>
                 <p class="h2 mb-0">{{ links|length }}</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card shadow-sm h-100">
             <div class="card-body text-center">
-                <i class="bi bi-graph-up display-4" style="color: #E85D04;"></i>
+                <i class="bi bi-graph-up display-4" style="color: #8B1E3F;"></i>
                 <h3 class="h5 mt-3">Total Clicks</h3>
                 <p class="h2 mb-0">{{ total_clicks }}</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card shadow-sm h-100">
             <div class="card-body text-center">
-                <i class="bi bi-calendar-check display-4" style="color: #8B1E3F;"></i>
-                <h3 class="h5 mt-3">Active Links</h3>
-                <p class="h2 mb-0">{{ links|length }}</p>
+                <i class="bi bi-people display-4" style="color: #E85D04;"></i>
+                <h3 class="h5 mt-3">Unique Visitors</h3>
+                <p class="h2 mb-0">{{ unique_clicks }}</p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Campaigns Section -->
-{% if campaigns %}
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-        <h3 class="h5 mb-0">My Campaigns</h3>
-        <div class="d-flex gap-2">
-            <input type="text" id="campaignSearch" class="form-control" placeholder="Search campaigns...">
-        </div>
-    </div>
-    <div class="card-body p-0">
-        <div class="row p-3">
-            {% for campaign in campaigns %}
-            <div class="col-md-4 mb-3 campaign-card">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ campaign.name }}</h5>
-                        <p class="card-text text-muted">{{ campaign.description|truncatechars:100 }}</p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-muted">
-                                    <i class="bi bi-link-45deg"></i> {{ campaign.links.count }} links
-                                </small>
-                                <small class="text-muted ms-2">
-                                    <i class="bi bi-graph-up"></i> {{ campaign.total_clicks }} clicks
-                                </small>
-                            </div>
-                            <a href="{% url 'campaign_detail' campaign.id %}" class="btn btn-sm custom-outline-btn">
-                                View Details
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Links Table -->
+<!-- Campaign Links -->
 <div class="card shadow-sm">
     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-        <h3 class="h5 mb-0">My Links</h3>
+        <h3 class="h5 mb-0">Campaign Links</h3>
         <div class="d-flex gap-2">
             <input type="text" id="linkSearch" class="form-control" placeholder="Search links...">
             <select class="form-select" id="linkSort">
@@ -112,15 +63,6 @@
         </div>
     </div>
     <div class="card-body p-0">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show m-3">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-
         {% if links %}
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
@@ -128,7 +70,6 @@
                         <tr>
                             <th scope="col" class="ps-4">Name</th>
                             <th scope="col">Trackable URL</th>
-                            <th scope="col">Campaign</th>
                             <th scope="col">Variables</th>
                             <th scope="col" class="text-center">Clicks</th>
                             <th scope="col">Created</th>
@@ -146,15 +87,6 @@
                                         <i class="bi bi-clipboard"></i> Copy
                                     </button>
                                 </div>
-                            </td>
-                            <td>
-                                {% if link.campaign %}
-                                <a href="{% url 'campaign_detail' link.campaign.id %}" class="badge text-decoration-none" style="background-color: #8B1E3F;">
-                                    {{ link.campaign.name }}
-                                </a>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
                             </td>
                             <td>
                                 {% for var in link.variables.all %}
@@ -182,10 +114,10 @@
         {% else %}
             <div class="text-center py-5">
                 <i class="bi bi-link-45deg display-1 text-muted"></i>
-                <h3 class="h4 mt-3">No links yet</h3>
-                <p class="text-muted">Create your first link to start tracking!</p>
-                <a href="{% url 'generate_link' %}" class="btn btn-primary">
-                    <i class="bi bi-plus-lg"></i> Create New Link
+                <h3 class="h4 mt-3">No links in this campaign yet</h3>
+                <p class="text-muted">Add your first link to start tracking!</p>
+                <a href="{% url 'generate_link' %}?campaign={{ campaign.id }}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> Add New Link
                 </a>
             </div>
         {% endif %}
@@ -194,27 +126,15 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Link search functionality
-    const linkSearchInput = document.getElementById('linkSearch');
-    linkSearchInput.addEventListener('input', function() {
+    // Search functionality
+    const searchInput = document.getElementById('linkSearch');
+    searchInput.addEventListener('input', function() {
         const searchTerm = this.value.toLowerCase();
         document.querySelectorAll('tbody tr').forEach(row => {
             const text = row.textContent.toLowerCase();
             row.style.display = text.includes(searchTerm) ? '' : 'none';
         });
     });
-
-    // Campaign search functionality
-    const campaignSearchInput = document.getElementById('campaignSearch');
-    if (campaignSearchInput) {
-        campaignSearchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            document.querySelectorAll('.campaign-card').forEach(card => {
-                const text = card.textContent.toLowerCase();
-                card.style.display = text.includes(searchTerm) ? '' : 'none';
-            });
-        });
-    }
 
     // Copy to clipboard function
     window.copyToClipboard = function(button) {
@@ -274,13 +194,5 @@ document.addEventListener('DOMContentLoaded', function() {
     background-color: #8B1E3F;
     color: white;
 }
-
-.campaign-card .card {
-    transition: transform 0.2s;
-}
-
-.campaign-card .card:hover {
-    transform: translateY(-5px);
-}
 </style>
-{% endblock %}
+{% endblock %} 

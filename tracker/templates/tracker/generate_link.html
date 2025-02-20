@@ -1,9 +1,18 @@
 {% extends 'tracker/base.html' %}
 {% block content %}
 <div class="container">
-    <h2 class="mb-4">Create Tracked Link</h2>
-    <div class="card">
-        <div class="card-body">
+    <div class="card shadow-sm">
+        <div class="card-header text-white d-flex justify-content-between align-items-center py-4" style="background-color: #8B1E3F;">
+            <div>
+                <h2 class="h3 mb-1">Create Tracked Link</h2>
+                {% if campaign_id %}
+                    <p class="mb-0 opacity-75">Adding link to campaign</p>
+                {% else %}
+                    <p class="mb-0 opacity-75">Create a new trackable link</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body p-4">
             <form method="post" id="linkForm">
                 {% csrf_token %}
                 <div class="mb-3">
@@ -23,114 +32,94 @@
                     {% endif %}
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label d-flex justify-content-between align-items-center">
-                        Variables to Track
-                        <button type="button" class="btn btn-sm btn-primary" id="addVariableBtn">
-                            <i class="bi bi-plus-lg"></i> Add Variable
-                        </button>
-                    </label>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> Variables will be automatically added to your URL as parameters. For example:
-                        <br>
-                        If URL = google.com and Variable = vendor_name with Braze placeholder is the custom_attribute
-                        <br>
-                        Final URL will be: google.com?vendor_name=custom_attribute
-                    </div>
-                    <div id="variablesContainer">
-                        <!-- Template for variable row that will be cloned by JavaScript -->
-                        <template id="variableRowTemplate">
-                            <div class="variable-row row mb-2">
-                                <div class="col">
-                                    <input type="text" 
-                                           name="variable_names[]" 
-                                           class="form-control" 
-                                           placeholder="Variable Name (e.g., vendor_name)" />
-                                    <div class="form-text">This will be the URL parameter name</div>
-                                </div>
-                                <div class="col">
-                                    <input type="text" 
-                                           name="variable_placeholders[]" 
-                                           class="form-control" 
-                                           placeholder="Braze Placeholder (e.g., custom_attribute.${vendor_name})" />
-                                    <div class="form-text">This will be replaced by the actual value when sent through Braze</div>
-                                </div>
-                                <div class="col-auto">
-                                    <button type="button" class="btn btn-danger remove-variable">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
+                <div class="mb-3">
+                    <label for="{{ form.campaign.id_for_label }}" class="form-label">Campaign (Optional)</label>
+                    {{ form.campaign }}
+                    {% if form.campaign.errors %}
+                        <div class="alert alert-danger">{{ form.campaign.errors }}</div>
+                    {% endif %}
+                    <div class="form-text">Group this link with a campaign for better organization and analytics.</div>
+                </div>
+
+                <div id="variables-container">
+                    <h5 class="mb-3">Variables (Optional)</h5>
+                    {% verbatim %}
+                    <template id="placeholder-template">{{custom_attribute.${vendor_name}}}</template>
+                    {% endverbatim %}
+                    <div class="variable-pair mb-2">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="text" name="variable_names[]" class="form-control" placeholder="Variable Name (e.g., vendor_id)">
                             </div>
-                        </template>
+                            <div class="col-md-6">
+                                <input type="text" name="variable_placeholders[]" class="form-control" {% verbatim %}placeholder="{{custom_attribute.${vendor_name}}}"{% endverbatim %}>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary">Generate Link</button>
+                <button type="button" class="btn btn-outline-secondary mb-4" onclick="addVariablePair()">
+                    <i class="bi bi-plus-circle"></i> Add Variable
+                </button>
+
+                <div class="d-flex justify-content-between">
+                    {% if campaign_id %}
+                        <a href="{% url 'campaign_detail' campaign_id %}" class="btn btn-outline-secondary">Cancel</a>
+                    {% else %}
+                        <a href="{% url 'home' %}" class="btn btn-outline-secondary">Cancel</a>
+                    {% endif %}
+                    <button type="submit" class="btn text-white" style="background-color: #8B1E3F;">Create Link</button>
+                </div>
             </form>
         </div>
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('linkForm');
-    const container = document.getElementById('variablesContainer');
-    const addButton = document.getElementById('addVariableBtn');
-    const template = document.getElementById('variableRowTemplate');
+function addVariablePair() {
+    const container = document.getElementById('variables-container');
+    const template = document.getElementById('placeholder-template');
+    const placeholderTemplate = template.innerHTML;
+    
+    const newPair = document.createElement('div');
+    newPair.className = 'variable-pair mb-2';
+    
+    // Create the row div
+    const row = document.createElement('div');
+    row.className = 'row';
 
-    // Add initial row
-    addVariableRow();
+    // Create first column
+    const col1 = document.createElement('div');
+    col1.className = 'col-md-6';
+    const input1 = document.createElement('input');
+    input1.type = 'text';
+    input1.name = 'variable_names[]';
+    input1.className = 'form-control';
+    input1.placeholder = 'Variable Name (e.g., vendor_id)';
+    col1.appendChild(input1);
 
-    function validatePlaceholder(name, placeholder) {
-        // Define the format parts
-        const formatStart = "{{custom_attribute.${";
-        const formatEnd = "}}";
-        
-        if (!placeholder.startsWith(formatStart) || !placeholder.endsWith(formatEnd)) {
-            alert(`Invalid placeholder format for "${name}". Use format: custom_attribute.${name}`);
-            return false;
-        }
+    // Create second column
+    const col2 = document.createElement('div');
+    col2.className = 'col-md-6';
+    const input2 = document.createElement('input');
+    input2.type = 'text';
+    input2.name = 'variable_placeholders[]';
+    input2.className = 'form-control';
+    input2.placeholder = placeholderTemplate;
+    col2.appendChild(input2);
 
-        return true;
-    }
-
-    function addVariableRow() {
-        const clone = template.content.cloneNode(true);
-        container.appendChild(clone);
-    }
-
-    addButton.addEventListener('click', addVariableRow);
-
-    container.addEventListener('click', function(e) {
-        if (e.target.closest('.remove-variable')) {
-            const rows = container.querySelectorAll('.variable-row');
-            if (rows.length > 1) {  // Keep at least one row
-                e.target.closest('.variable-row').remove();
-            }
-        }
-    });
-
-    form.addEventListener('submit', function(e) {
-        const names = document.getElementsByName('variable_names[]');
-        const placeholders = document.getElementsByName('variable_placeholders[]');
-        let isValid = true;
-
-        for (let i = 0; i < names.length; i++) {
-            const name = names[i].value.trim();
-            const placeholder = placeholders[i].value.trim();
-            
-            if (name && placeholder) {
-                if (!validatePlaceholder(name, placeholder)) {
-                    isValid = false;
-                    break;
-                }
-            }
-        }
-
-        if (!isValid) {
-            e.preventDefault();
-        }
-    });
-});
+    // Assemble the elements
+    row.appendChild(col1);
+    row.appendChild(col2);
+    newPair.appendChild(row);
+    container.appendChild(newPair);
+}
 </script>
+
+<style>
+.form-control:focus, .form-select:focus {
+    border-color: #8B1E3F;
+    box-shadow: 0 0 0 0.25rem rgba(139, 30, 63, 0.25);
+}
+</style>
 {% endblock %}

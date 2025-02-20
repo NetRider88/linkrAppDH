@@ -4,8 +4,8 @@ from django.conf import settings
 import geoip2.database
 from geoip2.errors import GeoIP2Error
 import user_agents
-from .models import Link, Click, LinkVariable, ClickVariable, IPInfo
-from .forms import LinkForm, UserProfileForm
+from .models import Link, Click, LinkVariable, ClickVariable, IPInfo, Campaign
+from .forms import LinkForm, UserProfileForm, CampaignForm
 from django.contrib import messages
 from django.utils import timezone
 from django.http import Http404, HttpResponse
@@ -31,15 +31,23 @@ from django.contrib.auth import logout
 
 def home(request):
     if request.user.is_authenticated:
+        campaigns = Campaign.objects.filter(user=request.user).order_by('-created_at')
         links = Link.objects.filter(user=request.user).order_by('-created_at')
+        
+        # Update click counts
         for link in links:
             link.total_clicks = link.clicks.count()
             link.save()
-        links = Link.objects.filter(user=request.user)
+        
+        # Update campaign totals
+        for campaign in campaigns:
+            campaign.update_total_clicks()
+        
         total_clicks = links.aggregate(Sum('total_clicks'))['total_clicks__sum'] or 0
         
         return render(request, 'tracker/home.html', {
             'links': links,
+            'campaigns': campaigns,
             'total_clicks': total_clicks
         })
     else:
@@ -47,21 +55,22 @@ def home(request):
 
 @login_required
 def generate_link(request):
+    # Get campaign_id from URL parameter if it exists
+    campaign_id = request.GET.get('campaign')
+    initial_data = {}
+    
+    if campaign_id:
+        try:
+            campaign = Campaign.objects.get(id=campaign_id, user=request.user)
+            initial_data['campaign'] = campaign
+        except Campaign.DoesNotExist:
+            pass
+
     if request.method == 'POST':
-        form = LinkForm(request.POST)
+        form = LinkForm(request.user, request.POST)
         if form.is_valid():
             link = form.save(commit=False)
             link.user = request.user
-            
-            # Parse the original URL
-            parsed_url = urlparse(link.original_url)
-            
-            # Get variables from form
-            variables = request.POST.getlist('variable_names[]')
-            placeholders = request.POST.getlist('variable_placeholders[]')
-            
-            # Save the original URL without modifications
-            link.original_url = link.original_url
             
             # Generate unique short_id
             characters = string.ascii_letters + string.digits
@@ -73,24 +82,79 @@ def generate_link(request):
             link.save()
 
             # Create LinkVariable objects
+            variables = request.POST.getlist('variable_names[]')
+            placeholders = request.POST.getlist('variable_placeholders[]')
+            
             for name, placeholder in zip(variables, placeholders):
-                if name and placeholder:  # Only create if both fields are filled
-                    # Validate Braze variable format
-                    if (placeholder.startswith('{{custom_attribute.${') and 
-                        placeholder.endswith('}}')):
+                if name and placeholder:
+                    # Clean variable name: remove spaces and special characters
+                    clean_name = ''.join(e for e in name if e.isalnum() or e == '_').lower()
+                    if clean_name:  # Only create if we have a valid name
                         LinkVariable.objects.create(
                             link=link,
-                            name=name,
+                            name=clean_name,
                             placeholder=placeholder
                         )
 
-            # Refresh the link object to ensure we have the latest data including variables
-            link.refresh_from_db()
-            messages.success(request, f'Link created: {link.get_short_url()}')
+            # Update campaign total clicks if link is part of a campaign
+            if link.campaign:
+                link.campaign.update_total_clicks()
+                messages.success(request, f'Link created and added to campaign "{link.campaign.name}": {link.get_short_url(request)}')
+                return redirect('campaign_detail', campaign_id=link.campaign.id)
+            else:
+                messages.success(request, f'Link created: {link.get_short_url(request)}')
+                return redirect('home')
+    else:
+        form = LinkForm(request.user, initial=initial_data)
+    
+    return render(request, 'tracker/generate_link.html', {
+        'form': form,
+        'campaign_id': campaign_id
+    })
+
+@login_required
+def create_campaign(request):
+    if request.method == 'POST':
+        form = CampaignForm(request.POST)
+        if form.is_valid():
+            campaign = form.save(commit=False)
+            campaign.user = request.user
+            campaign.save()
+            messages.success(request, f'Campaign "{campaign.name}" created successfully!')
             return redirect('home')
     else:
-        form = LinkForm()
-    return render(request, 'tracker/generate_link.html', {'form': form})
+        form = CampaignForm()
+    return render(request, 'tracker/create_campaign.html', {'form': form})
+
+@login_required
+def campaign_detail(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id, user=request.user)
+    links = campaign.links.all().order_by('-created_at')
+    
+    # Calculate campaign statistics
+    total_clicks = sum(link.total_clicks for link in links)
+    unique_clicks = len(set(click.visitor_id for link in links for click in link.clicks.all()))
+    
+    # Get click data for graphs
+    clicks = Click.objects.filter(link__in=links)
+    
+    # Create analytics data similar to individual link analytics
+    # (You can reuse your existing analytics code here)
+    
+    return render(request, 'tracker/campaign_detail.html', {
+        'campaign': campaign,
+        'links': links,
+        'total_clicks': total_clicks,
+        'unique_clicks': unique_clicks,
+        # Add more context data as needed
+    })
+
+@login_required
+def delete_campaign(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id, user=request.user)
+    campaign.delete()
+    messages.success(request, 'Campaign deleted successfully.')
+    return redirect('home')
 
 def create_click_record(request, link):
     # Get IP address
@@ -161,30 +225,41 @@ def create_click_record(request, link):
     return click
 
 def track_click(request, short_id):
-    link = get_object_or_404(Link, short_id=short_id)
-    click = create_click_record(request, link)
+    try:
+        link = get_object_or_404(Link, short_id=short_id)
+        click = create_click_record(request, link)
 
-    # Track variables
-    for variable in link.variables.all():
-        value = request.GET.get(variable.name, '')
-        if value:
-            # URL decode the value if needed
-            try:
-                decoded_value = unquote_plus(value)
-            except Exception:
-                decoded_value = value
+        # Track variables
+        for variable in link.variables.all():
+            # Clean the variable name to match how it was saved
+            clean_name = ''.join(e for e in variable.name if e.isalnum() or e == '_').lower()
+            value = request.GET.get(clean_name, '')
+            if value:
+                # URL decode the value if needed
+                try:
+                    decoded_value = unquote_plus(value)
+                except Exception:
+                    decoded_value = value
 
-            ClickVariable.objects.create(
-                click=click,
-                variable=variable,
-                value=decoded_value
-            )
+                ClickVariable.objects.create(
+                    click=click,
+                    variable=variable,
+                    value=decoded_value
+                )
 
-    # Update total clicks
-    link.total_clicks += 1
-    link.save()
+        # Update total clicks
+        link.total_clicks += 1
+        link.save()
 
-    return redirect(link.original_url)
+        return redirect(link.original_url)
+    except Link.DoesNotExist:
+        raise Http404(f"No link found with ID: {short_id}")
+    except Exception as e:
+        print(f"Error tracking click: {e}")
+        # Still redirect to the original URL if possible
+        if 'link' in locals() and hasattr(link, 'original_url'):
+            return redirect(link.original_url)
+        raise
 
 def redirect_link(request, short_id):
     link = get_object_or_404(Link, short_id=short_id)

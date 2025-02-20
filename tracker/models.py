@@ -3,8 +3,23 @@ from django.db import models
 from urllib.parse import urlencode
 from django.conf import settings
 
+class Campaign(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='campaigns')
+    created_at = models.DateTimeField(auto_now_add=True)
+    total_clicks = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.name
+
+    def update_total_clicks(self):
+        self.total_clicks = sum(link.total_clicks for link in self.links.all())
+        self.save()
+
 class Link(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    campaign = models.ForeignKey(Campaign, on_delete=models.SET_NULL, null=True, blank=True, related_name='links')
     original_url = models.URLField()
     short_id = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=200, blank=True, null=True)
@@ -17,15 +32,25 @@ class Link(models.Model):
     def __str__(self):
         return f"{self.short_id} -> {self.original_url}"
 
-    def get_short_url(self):
-        # Use settings.DEFAULT_DOMAIN or fallback to the request's domain
-        domain = "linkrappdh.onrender.com"
-        base_url = f"https://{domain}/tracker/{self.short_id}"
+    def get_short_url(self, request=None):
+        # Get domain from settings or use the render domain
+        if settings.DEBUG:
+            domain = "127.0.0.1:8000"
+        else:
+            domain = "linkrappdh.onrender.com"
         
-        # If there are any variables, use the Braze placeholder
+        # Determine protocol (http vs https)
+        protocol = "http" if settings.DEBUG else "https"
+        
+        base_url = f"{protocol}://{domain}/tracker/{self.short_id}"
+        
+        # If there are any variables, add them as query parameters
         if self.variables.exists():
-            variable = self.variables.first()
-            return f"{base_url}?{variable.name}={variable.placeholder}"
+            query_params = {}
+            for variable in self.variables.all():
+                query_params[variable.name] = variable.placeholder
+            query_string = urlencode(query_params)
+            return f"{base_url}?{query_string}"
         return base_url
 
 class LinkVariable(models.Model):
